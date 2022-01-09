@@ -7,7 +7,7 @@ import random
 
 MAP_FILE = "level1.map"
 
-
+# test comment
 def loadCharacterSpritesheet(filename, xRes, yRes, xNum, yNum, xScale=1, yScale=1, colorkey=None, d_x=0, d_y=0, d_x1=0,
                              d_y1=0):
     file = pygame.image.load(filename).convert()
