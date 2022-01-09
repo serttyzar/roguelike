@@ -3,7 +3,7 @@ import os
 import sys
 import datetime
 import random
-import time
+
 
 MAP_FILE = "level1.map"
 
