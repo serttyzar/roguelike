@@ -7,7 +7,7 @@ import random
 
 MAP_FILE = "level1.map"
 
-#...
+
 def loadCharacterSpritesheet(filename, xRes, yRes, xNum, yNum, xScale=1, yScale=1, colorkey=None, d_x=0, d_y=0, d_x1=0,
                              d_y1=0):
     file = pygame.image.load(filename).convert()
@@ -79,7 +79,8 @@ PLAYER_IMAGES = [
     loadCharacterSpritesheet('data/Hero_sprites/Attack.png', 140, 140, 8, 1, 0.357, 0.357, -1)]
 ENEMY_IMAGES = {
     'spearman_not_arm': load_image('Enemies/Skeleton_Spearman Not Armored2.png', -1),
-    'skeleton_mage': load_image('Enemies/Skeleton_Mage Not Hooded2.png', -1)
+    'skeleton_mage': load_image('Enemies/Skeleton_Mage Not Hooded2.png', -1),
+    'mag_ball': load_image('Enemies/mag_ball.png', -1)
 }
 TILE_WIDTH = TILE_HEIGHT = 50
 HEARTS_IMAGES = [load_image('heart.png'), load_image('empty_heart.png')]
@@ -93,6 +94,7 @@ ALL_TILES = []
 ALL_ENEMIES = []
 ALL_TRAPS = []
 ALL_CHESTS = []
+ALL_MAG_BALLS = []
 
 
 class SpriteGroup(pygame.sprite.Group):
@@ -211,9 +213,6 @@ class Enemy(Sprite):
         for sprite in enemy_group:
             camera.enemy_apply(sprite)
 
-    def shot(self):
-        pass
-
 
 class RangeEnemy(Sprite):
     def __init__(self, enemy_type, pos_x, pos_y, direction, hp):
@@ -225,6 +224,8 @@ class RangeEnemy(Sprite):
         self.abs_pos = [self.rect.x, self.rect.y]
         self.hp = hp
         self.is_visible = False
+        self.direction = direction
+        ALL_MAG_BALLS.append(MagicBall(pos_x, pos_y, direction))
 
     def move(self):
         pass
@@ -233,8 +234,34 @@ class RangeEnemy(Sprite):
     #    MagicBall
 
 
-#class MagicBall(Sprite):
+class MagicBall(Sprite):
+    def __init__(self, pos_x, pos_y, direction):
+        super().__init__(enemy_group)
+        self.true_image = ENEMY_IMAGES['mag_ball']
+        self.image = TILE_IMAGES['void'][0]
+        self.rect = self.image.get_rect().move(
+            TILE_WIDTH * pos_x, TILE_HEIGHT * pos_y)
+        self.abs_pos = [self.rect.x, self.rect.y]
+        self.start_pos = [pos_x * TILE_WIDTH, pos_y * TILE_HEIGHT]
+        self.is_visible = False
+        self.direction = direction
+        self.iteration = 0
 
+    def move(self):
+        if self.iteration == 5:
+            self.iteration = 0
+            self.abs_pos = self.start_pos[:]
+        elif self.direction == 'left':
+            self.abs_pos[0] -= 1 * TILE_WIDTH
+        elif self.direction == 'up':
+            self.abs_pos[1] -= 1 * TILE_HEIGHT
+        elif self.direction == 'right':
+            self.abs_pos[0] += 1 * TILE_WIDTH
+        elif self.direction == 'down':
+            self.abs_pos[1] += 1 * TILE_WIDTH
+        for sprite in enemy_group:
+            camera.enemy_apply(sprite)
+        self.iteration += 1
 
 
 class Treasure(Sprite):
@@ -320,21 +347,21 @@ class TextObj:
         self.color = color
         self.x, self.y = x, y
         self.is_center = is_center
-        self.text_render(self.x, self.y)
+        self.text_render()
         if btn_size is None:
             self.button_rect = (self.rect.x, self.rect.y, self.rect.width, self.rect.height)
         else:
             self.button_rect = btn_size
 
-    def text_render(self, x, y):
+    def text_render(self):
         self.font = pygame.font.Font('data/mael1.ttf', self.font_size)
         self.string_rendered = self.font.render(self.text, True, self.color)
         self.rect = self.string_rendered.get_rect()
         if not self.is_center:
-            self.rect.x = x
+            self.rect.x = self.x
         else:
-            self.rect.centerx = x
-        self.rect.top = y
+            self.rect.centerx = self.x
+        self.rect.top = self.y
         screen.blit(self.string_rendered, self.rect)
 
     def change_color(self, color):
@@ -343,7 +370,7 @@ class TextObj:
         self.string_rendered = self.font.render(self.text, True, self.color)
         screen.blit(self.string_rendered, self.rect)
 
-    def chacge_text(self, text):
+    def change_text(self, text):
         self.text = text
         self.string_rendered = self.font.render(self.text, True, self.color)
         screen.blit(self.string_rendered, self.rect)
@@ -514,7 +541,6 @@ def generate_level(level):
                 level[y][x] = "."
             elif level[y][x] == 'r':
                 ALL_TILES.append(Tile('empty', x, y))
-                print(MAGE_CAST_DIRECTION_INDEX)
                 ALL_ENEMIES.append(RangeEnemy('skeleton_mage', x, y,
                                               MAGE_CAST_DIRECTIONS[MAGE_CAST_DIRECTION_INDEX], 3))
                 level[y][x] = "."
@@ -589,22 +615,40 @@ def set_enemies_visible(hero):
                 else:
                     enemy.is_visible = False
                     enemy.image = TILE_IMAGES['void'][0]
+    for ball in ALL_MAG_BALLS:
+        for tile in ALL_TILES:
+            if tile.init_pos[0] // TILE_WIDTH == ball.abs_pos[0] // TILE_WIDTH and tile.init_pos[1] // TILE_WIDTH == \
+                    ball.abs_pos[1] // TILE_WIDTH:
+                if tile.is_visible:
+                    ball.is_visible = True
+                    ball.image = ball.true_image
+                else:
+                    ball.is_visible = False
+                    ball.image = TILE_IMAGES['void'][0]
 
 
 def restart():
     global level_map, hero, max_x, max_y, camera, iteration_time, iteration_time1, iteration_time_f_trap, \
-        iteration_time_attack, iteration_time_idle, iteration_time_spike_trap, hearts
+        iteration_time_attack, iteration_time_idle, iteration_time_spike_trap, iteration_time_mag_ball, hearts
     screen.fill(pygame.Color("black"))
     level_map = load_level(MAP_FILE)
     hero, max_x, max_y = generate_level(level_map)
     camera = Camera(hero)
     iteration_time = iteration_time1 = iteration_time_f_trap = iteration_time_attack = \
-        iteration_time_idle = iteration_time_spike_trap = datetime.datetime.now()
+        iteration_time_idle = iteration_time_spike_trap = iteration_time_mag_ball = datetime.datetime.now()
     hearts = [HealthBar(2, 0), HealthBar(1.5, 0),
               HealthBar(1, 0), HealthBar(0.5, 0), HealthBar(0, 0)]
     set_tiles_visible(hero)
     set_enemies_visible(hero)
 
+
+class Timer:
+    def __init__(self, time):
+        self.time = time
+        self.timer = TextObj(f"{time}", WIDTH - 90, 5, 70, pygame.Color('orange'), True)
+
+    def tick(self):
+        self.timer.change_text("4:00")
 
 SOUND_VOLUME = 0.05
 EFFECT_VOLUME = 1
@@ -615,13 +659,13 @@ level_map = load_level(MAP_FILE)
 hero, max_x, max_y = generate_level(level_map)
 camera = Camera(hero)
 iteration_time = iteration_time1 = iteration_time_attack = iteration_time_idle \
-    = iteration_time_f_trap = iteration_time_spike_trap = datetime.datetime.now()
+    = iteration_time_f_trap = iteration_time_spike_trap = iteration_time_mag_ball = datetime.datetime.now()
 hearts = [HealthBar(2, 0), HealthBar(1.5, 0),
           HealthBar(1, 0), HealthBar(0.5, 0), HealthBar(0, 0)]
 set_tiles_visible(hero)
 set_enemies_visible(hero)
 start_screen()
-
+timer = Timer()
 while running:
     now = datetime.datetime.now()
     for event in pygame.event.get():
@@ -726,6 +770,10 @@ while running:
         iteration_time = now
         for enemy in ALL_ENEMIES:
             enemy.move()
+    if (now - iteration_time_mag_ball).total_seconds() >= 1:
+        iteration_time_mag_ball = now
+        for ball in ALL_MAG_BALLS:
+            ball.move()
     if hero.health == 0:
         hearts[-1].isfull = False
         hearts[-1].image = HEARTS_IMAGES[1]
@@ -737,7 +785,6 @@ while running:
             restart()
         elif res == 2:
             start_screen()
-
     set_enemies_visible(hero)
     screen.fill(pygame.Color("black"))
     sprite_group.draw(screen)
@@ -746,6 +793,7 @@ while running:
     trap_group.draw(screen)
     treasure_group.draw(screen)
     heart_group.draw(screen)
+    timer.timer.text_render()
     clock.tick(FPS)
     pygame.display.flip()
 pygame.quit()
