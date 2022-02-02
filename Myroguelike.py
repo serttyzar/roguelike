@@ -176,6 +176,17 @@ class Player(Sprite):
             camera.hero_apply(sprite)
 
 
+class Treasure(Sprite):
+    def __init__(self, pos_x, pos_y):
+        super().__init__(treasure_group)
+        self.true_image = TREASURE_IMAGES[0][0][0]
+        self.image = TILE_IMAGES['void'][0]
+        self.rect = self.image.get_rect().move(
+            TILE_WIDTH * pos_x + 5, TILE_HEIGHT * pos_y + 5)
+        self.init_pos = (self.rect.x, self.rect.y)
+        self.is_visible = False
+
+
 class HealthBar(Sprite):
     def __init__(self, pos_x, pos_y):
         super().__init__(heart_group)
@@ -214,7 +225,7 @@ class Enemy(Sprite):
             camera.enemy_apply(sprite)
 
 
-class RangeEnemy(Sprite):
+class RangedEnemy(Sprite):
     def __init__(self, enemy_type, pos_x, pos_y, direction, hp):
         super().__init__(enemy_group)
         self.true_image = ENEMY_IMAGES[enemy_type]
@@ -229,9 +240,6 @@ class RangeEnemy(Sprite):
 
     def move(self):
         pass
-
-    #def shot(self):
-    #    MagicBall
 
 
 class MagicBall(Sprite):
@@ -262,17 +270,6 @@ class MagicBall(Sprite):
         for sprite in enemy_group:
             camera.enemy_apply(sprite)
         self.iteration += 1
-
-
-class Treasure(Sprite):
-    def __init__(self, pos_x, pos_y):
-        super().__init__(treasure_group)
-        self.true_image = TREASURE_IMAGES[0][0][0]
-        self.image = TILE_IMAGES['void'][0]
-        self.rect = self.image.get_rect().move(
-            TILE_WIDTH * pos_x + 5, TILE_HEIGHT * pos_y + 5)
-        self.init_pos = (self.rect.x, self.rect.y)
-        self.is_visible = False
 
 
 class Camera:
@@ -399,6 +396,11 @@ def start_screen():
                 settings_btn.change_color(pygame.Color('white'))
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     settings()
+                    fon = pygame.transform.scale(load_image('start_screen.jpg'), screen_size)
+                    screen.blit(fon, (0, 0))
+                    TextObj("ROGUELIKE", WIDTH // 2, 180, 100, pygame.Color('black'), True)
+                    start_btn = TextObj("NEW GAME", WIDTH // 2, 300, 40, pygame.Color('black'), True)
+                    settings_btn = TextObj("SETTINGS", WIDTH // 2, 360, 35, pygame.Color('black'), True)
             if not on_start_btn:
                 start_btn.change_color(pygame.Color('black'))
             if not on_settings_btn:
@@ -418,12 +420,14 @@ def settings():
     TextObj("VOLUME", WIDTH // 2, 270, 60, pygame.Color('black'), True)
     minus_btn = TextObj("-", WIDTH // 2 - 100, 300, 120, pygame.Color('black'), True)
     plus_btn = TextObj("+", WIDTH // 2 + 100, 300, 120, pygame.Color('black'), True)
+    back_btn = TextObj("BACK", WIDTH // 2, 420, 40, pygame.Color('black'), True)
     #  leave_btn = TextObj("+", WIDTH // 2 + 100, 300, 120, pygame.Color('black'), True)
     # status_volume = TextObj(str(SOUND_VOLUME * 100), WIDTH // 2, 330, 70, pygame.Color('black'), True)
     while True:
         for event in pygame.event.get():
             on_minus_btn = check_button_click(minus_btn.button_rect, pygame.mouse.get_pos())
             on_plus_btn = check_button_click(plus_btn.button_rect, pygame.mouse.get_pos())
+            on_back_btn = check_button_click(back_btn.button_rect, pygame.mouse.get_pos())
             if event.type == pygame.QUIT:
                 terminate()
             elif on_minus_btn:
@@ -433,18 +437,22 @@ def settings():
                         SOUND_VOLUME -= 0.01
                         # status_volume.chacge_text(str(SOUND_VOLUME * 100))
                     pygame.mixer.music.set_volume(SOUND_VOLUME)
-
             elif on_plus_btn:
                 plus_btn.change_color(pygame.Color('white'))
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     if SOUND_VOLUME < 0.1:
                         SOUND_VOLUME += 0.01
                     pygame.mixer.music.set_volume(SOUND_VOLUME)
-
+            elif on_back_btn:
+                back_btn.change_color(pygame.Color('white'))
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    return
             if not on_plus_btn:
                 plus_btn.change_color(pygame.Color('black'))
             if not on_minus_btn:
                 minus_btn.change_color(pygame.Color('black'))
+            if not on_back_btn:
+                back_btn.change_color(pygame.Color('black'))
 
         pygame.display.flip()
         clock.tick(FPS)
@@ -477,6 +485,19 @@ def game_over():
                 settings_btn.change_color(pygame.Color('white'))
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     settings()
+
+                    back_ground_image = load_image('game_over.jpg')
+                    fon = pygame.transform.scale(back_ground_image,
+                                                 (back_ground_image.get_rect()[2] + 120,
+                                                  back_ground_image.get_rect()[3] + 120))
+                    screen.blit(fon, (WIDTH // 2 - (back_ground_image.get_rect()[2] + 120) // 2,
+                                      HEIGHT // 2 - (back_ground_image.get_rect()[3] + 120) // 2))
+                    TextObj("ROGUELIKE", WIDTH // 2, 140, 70, pygame.Color('black'), True)
+                    TextObj(" GAME OVER", WIDTH // 2, 220, 60, pygame.Color('red'), True)
+                    again_btn = TextObj("NEW GaME", WIDTH // 2, 300, 40, pygame.Color('black'), True)
+                    settings_btn = TextObj("SETTINGS", WIDTH // 2, 360, 40, pygame.Color('black'), True)
+                    menu_btn = TextObj("MEIN MENU", WIDTH // 2, 420, 40, pygame.Color('black'), True)
+
             elif on_menu_btn:
                 menu_btn.change_color(pygame.Color('white'))
                 if event.type == pygame.MOUSEBUTTONDOWN:
@@ -541,8 +562,8 @@ def generate_level(level):
                 level[y][x] = "."
             elif level[y][x] == 'r':
                 ALL_TILES.append(Tile('empty', x, y))
-                ALL_ENEMIES.append(RangeEnemy('skeleton_mage', x, y,
-                                              MAGE_CAST_DIRECTIONS[MAGE_CAST_DIRECTION_INDEX], 3))
+                ALL_ENEMIES.append(RangedEnemy('skeleton_mage', x, y,
+                                               MAGE_CAST_DIRECTIONS[MAGE_CAST_DIRECTION_INDEX], 3))
                 level[y][x] = "."
                 MAGE_CAST_DIRECTION_INDEX += 1
     MAGE_CAST_DIRECTION_INDEX = 0
@@ -554,21 +575,29 @@ def move(hero, movement):
     if movement == "up":
         if y > 0 and level_map[y - 1][x] == ".":
             hero.move(x, y - 1)
+        elif y > 0 and level_map[y - 1][x] == "c":
+            print(1)
     elif movement == "down":
         if y < max_y - 1 and level_map[y + 1][x] == ".":
             hero.move(x, y + 1)
+        elif y < max_y - 1 and level_map[y + 1][x] == "c":
+            print(2)
     elif movement == "left":
         if hero.direction == 'right':
             hero.direction = 'left'
             hero.image = pygame.transform.flip(hero.image, True, False)
         if x > 0 and level_map[y][x - 1] == ".":
             hero.move(x - 1, y)
+        elif x > 0 and level_map[y][x - 1] == "c":
+            print(3)
     elif movement == "right":
         if hero.direction == 'left':
             hero.direction = 'right'
             hero.image = pygame.transform.flip(hero.image, True, False)
         if x < max_x - 1 and level_map[y][x + 1] == ".":
             hero.move(x + 1, y)
+        elif x < max_x - 1 and level_map[y][x + 1] == "c":
+            print(4)
 
 
 VISIBLE_RADIUS = 3
@@ -628,27 +657,46 @@ def set_enemies_visible(hero):
 
 
 def restart():
-    global level_map, hero, max_x, max_y, camera, iteration_time, iteration_time1, iteration_time_f_trap, \
-        iteration_time_attack, iteration_time_idle, iteration_time_spike_trap, iteration_time_mag_ball, hearts
+    global level_map, hero, max_x, max_y, camera, iteration_time, iteration_time_enemy, iteration_time1, \
+        iteration_time_f_trap, iteration_time_attack, iteration_time_idle, iteration_time_spike_trap, \
+        iteration_time_mag_ball, hearts
     screen.fill(pygame.Color("black"))
     level_map = load_level(MAP_FILE)
     hero, max_x, max_y = generate_level(level_map)
     camera = Camera(hero)
-    iteration_time = iteration_time1 = iteration_time_f_trap = iteration_time_attack = \
+    iteration_time = iteration_time_enemy = iteration_time1 = iteration_time_f_trap = iteration_time_attack = \
         iteration_time_idle = iteration_time_spike_trap = iteration_time_mag_ball = datetime.datetime.now()
     hearts = [HealthBar(2, 0), HealthBar(1.5, 0),
               HealthBar(1, 0), HealthBar(0.5, 0), HealthBar(0, 0)]
     set_tiles_visible(hero)
     set_enemies_visible(hero)
+    timer.timer.change_text(timer.time)
 
 
 class Timer:
     def __init__(self, time):
         self.time = time
+        self.start_time = time
         self.timer = TextObj(f"{time}", WIDTH - 90, 5, 70, pygame.Color('orange'), True)
 
     def tick(self):
-        self.timer.change_text("4:00")
+        tm_min, tm_sec = map(int, self.time.split(':'))
+        if tm_sec == 0 and tm_min == 0:
+            tm_min, tm_sec = map(int, self.start_time.split(':'))
+            res = game_over()
+            if res == 1:
+                clear_groups()
+                restart()
+            elif res == 2:
+                start_screen()
+        elif tm_sec == 0:
+            tm_min -= 1
+            tm_sec = 59
+        else:
+            tm_sec -= 1
+        self.time = f'{tm_min}:{tm_sec:02}'
+        self.timer.change_text(self.time)
+
 
 SOUND_VOLUME = 0.05
 EFFECT_VOLUME = 1
@@ -658,14 +706,14 @@ pygame.mixer.music.set_volume(SOUND_VOLUME)
 level_map = load_level(MAP_FILE)
 hero, max_x, max_y = generate_level(level_map)
 camera = Camera(hero)
-iteration_time = iteration_time1 = iteration_time_attack = iteration_time_idle \
+iteration_time = iteration_time_enemy = iteration_time1 = iteration_time_attack = iteration_time_idle \
     = iteration_time_f_trap = iteration_time_spike_trap = iteration_time_mag_ball = datetime.datetime.now()
 hearts = [HealthBar(2, 0), HealthBar(1.5, 0),
           HealthBar(1, 0), HealthBar(0.5, 0), HealthBar(0, 0)]
 set_tiles_visible(hero)
 set_enemies_visible(hero)
+timer = Timer('10:00')  # time in str: _min:__sec
 start_screen()
-timer = Timer()
 while running:
     now = datetime.datetime.now()
     for event in pygame.event.get():
@@ -680,8 +728,8 @@ while running:
                 move(hero, "left")
             elif event.key == pygame.K_RIGHT:
                 move(hero, "right")
-            elif event.key == pygame.K_SPACE and not hero.attacking:
-                hero.attacking = True
+            #elif event.key == pygame.K_SPACE and not hero.attacking:
+            #    hero.attacking = True
             set_tiles_visible(hero)
         #    if pygame.key.get_pressed():
         # if pygame.key.get_pressed()[pygame.K_UP]:
@@ -733,7 +781,7 @@ while running:
                     heart.image = HEARTS_IMAGES[1]
                     hero.health -= 1
                     break
-    if hero.attacking:
+    '''if hero.attacking:
         if (now - iteration_time_attack).total_seconds() >= 0.15:
             iteration_time_attack = now
             if hero.direction == 'right':
@@ -743,7 +791,7 @@ while running:
             hero.num_attack_sprite = (hero.num_attack_sprite + 1) % 6
             if hero.num_attack_sprite == 0:
                 hero.attacking = False
-                hero.image = PLAYER_IMAGES[0][0][0]
+                hero.image = PLAYER_IMAGES[0][0][0]'''
     if not hero.attacking:
         if (now - iteration_time_idle).total_seconds() >= 0.1:
             iteration_time_idle = now
@@ -752,6 +800,9 @@ while running:
             else:
                 hero.image = pygame.transform.flip(PLAYER_IMAGES[0][hero.num_idle_sprite][0], True, False)
             hero.num_idle_sprite = (hero.num_idle_sprite + 1) % 11
+    if (now - iteration_time).total_seconds() >= 1:
+        iteration_time = now
+        timer.tick()
     if (now - iteration_time_f_trap).total_seconds() >= 0.2:
         iteration_time_f_trap = now
         for trap in ALL_TRAPS:
@@ -766,8 +817,8 @@ while running:
                 trap.num_spike_sprite = (trap.num_spike_sprite + 1) % 13
                 if trap.is_visible:
                     trap.image = TRAPS_IMAGES[trap.tile_type][0][trap.num_spike_sprite][0]
-    if (now - iteration_time).total_seconds() >= 1:
-        iteration_time = now
+    if (now - iteration_time_enemy).total_seconds() >= 1:
+        iteration_time_enemy = now
         for enemy in ALL_ENEMIES:
             enemy.move()
     if (now - iteration_time_mag_ball).total_seconds() >= 1:
@@ -780,6 +831,7 @@ while running:
         heart_group.draw(screen)
         pygame.display.flip()
         res = game_over()
+        timer.time = timer.start_time
         if res == 1:
             clear_groups()
             restart()
