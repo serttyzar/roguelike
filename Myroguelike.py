@@ -80,7 +80,7 @@ PLAYER_IMAGES = [
 ENEMY_IMAGES = {
     'spearman_not_arm': load_image('Enemies/Skeleton_Spearman Not Armored2.png', -1),
     'skeleton_mage': load_image('Enemies/Skeleton_Mage Not Hooded2.png', -1),
-    'mag_ball': load_image('Enemies/mag_ball.png', -1)
+    'mag_ball': loadSpritesheet('data/Enemies/mag_attack.png', 32, 32, 3, 2, 1.5, 1.5, -1)
 }
 TILE_WIDTH = TILE_HEIGHT = 50
 HEARTS_IMAGES = [load_image('heart.png'), load_image('empty_heart.png')]
@@ -95,6 +95,7 @@ ALL_ENEMIES = []
 ALL_TRAPS = []
 ALL_CHESTS = []
 ALL_MAG_BALLS = []
+print(ENEMY_IMAGES['mag_ball'][0][0])
 
 
 class SpriteGroup(pygame.sprite.Group):
@@ -167,6 +168,8 @@ class Player(Sprite):
                 camera.apply(sprite)
             for sprite in enemy_group:
                 camera.enemy_apply(sprite)
+            for sprite in mag_balls_group:
+                camera.enemy_apply(sprite)
             for sprite in trap_group:
                 camera.apply(sprite)
             for sprite in treasure_group:
@@ -174,17 +177,6 @@ class Player(Sprite):
         self.tile_pos = (x, y)
         for sprite in hero_group:
             camera.hero_apply(sprite)
-
-
-class Treasure(Sprite):
-    def __init__(self, pos_x, pos_y):
-        super().__init__(treasure_group)
-        self.true_image = TREASURE_IMAGES[0][0][0]
-        self.image = TILE_IMAGES['void'][0]
-        self.rect = self.image.get_rect().move(
-            TILE_WIDTH * pos_x + 5, TILE_HEIGHT * pos_y + 5)
-        self.init_pos = (self.rect.x, self.rect.y)
-        self.is_visible = False
 
 
 class HealthBar(Sprite):
@@ -236,16 +228,16 @@ class RangedEnemy(Sprite):
         self.hp = hp
         self.is_visible = False
         self.direction = direction
-        ALL_MAG_BALLS.append(MagicBall(pos_x, pos_y, direction))
+        ALL_MAG_BALLS.append(MagicBall(pos_x, pos_y, direction[0], direction[1]))
 
     def move(self):
         pass
 
 
 class MagicBall(Sprite):
-    def __init__(self, pos_x, pos_y, direction):
-        super().__init__(enemy_group)
-        self.true_image = ENEMY_IMAGES['mag_ball']
+    def __init__(self, pos_x, pos_y, direction, distance):
+        super().__init__(mag_balls_group)
+        self.true_image = ENEMY_IMAGES['mag_ball'][0][0]
         self.image = TILE_IMAGES['void'][0]
         self.rect = self.image.get_rect().move(
             TILE_WIDTH * pos_x, TILE_HEIGHT * pos_y)
@@ -253,23 +245,47 @@ class MagicBall(Sprite):
         self.start_pos = [pos_x * TILE_WIDTH, pos_y * TILE_HEIGHT]
         self.is_visible = False
         self.direction = direction
+        self.distance = distance
         self.iteration = 0
 
     def move(self):
-        if self.iteration == 5:
-            self.iteration = 0
-            self.abs_pos = self.start_pos[:]
-        elif self.direction == 'left':
+        if self.direction == 'left':
             self.abs_pos[0] -= 1 * TILE_WIDTH
         elif self.direction == 'up':
             self.abs_pos[1] -= 1 * TILE_HEIGHT
         elif self.direction == 'right':
             self.abs_pos[0] += 1 * TILE_WIDTH
         elif self.direction == 'down':
-            self.abs_pos[1] += 1 * TILE_WIDTH
-        for sprite in enemy_group:
+            self.abs_pos[1] += 1 * TILE_HEIGHT
+        for sprite in mag_balls_group:
             camera.enemy_apply(sprite)
         self.iteration += 1
+        if self.iteration == self.distance:
+            self.iteration = 0
+            self.abs_pos = self.start_pos[::]
+        if self.is_visible:
+            print(self.distance)
+
+
+MAGE_CAST_DIRECTIONS = [('down', 4), ('down', 4), ('down', 4), ('down', 6), ('right', 6), ('right', 6), ('up', 5),
+                        ('down', 6), ('up', 4), ('up', 4), ('up', 4), ('up', 4), ('up', 4), ('up', 4), ('up', 3),
+                        ('up', 3)]
+MAGE_CAST_DIRECTION_INDEX = 0
+
+
+class Treasure(Sprite):
+    def __init__(self, pos_x, pos_y):
+        super().__init__(treasure_group)
+        self.true_image = TREASURE_IMAGES[0][0][0]
+        self.image = TILE_IMAGES['void'][0]
+        self.rect = self.image.get_rect().move(
+            TILE_WIDTH * pos_x + 5, TILE_HEIGHT * pos_y + 5)
+        self.init_pos = (self.rect.x, self.rect.y)
+        self.tile_pos = [pos_x, pos_y]
+        self.opened = False
+        self.opening_animation = False
+        self.num_picture = 0
+        self.is_visible = False
 
 
 class Camera:
@@ -313,16 +329,24 @@ enemy_group = SpriteGroup()
 heart_group = SpriteGroup()
 trap_group = SpriteGroup()
 treasure_group = SpriteGroup()
+mag_balls_group = SpriteGroup()
 
 
-def clear_groups():
-    global sprite_group, hero_group, enemy_group, heart_group, trap_group, treasure_group
+def clear():
+    global sprite_group, hero_group, enemy_group, heart_group, trap_group, treasure_group, mag_balls_group, \
+        ALL_TILES, ALL_ENEMIES, ALL_TRAPS, ALL_CHESTS, ALL_MAG_BALLS
     sprite_group = SpriteGroup()
     hero_group = SpriteGroup()
     enemy_group = SpriteGroup()
     heart_group = SpriteGroup()
     trap_group = SpriteGroup()
     treasure_group = SpriteGroup()
+    mag_balls_group = SpriteGroup()
+    ALL_TILES.clear()
+    ALL_ENEMIES.clear()
+    ALL_TRAPS.clear()
+    ALL_CHESTS.clear()
+    ALL_MAG_BALLS.clear()
 
 
 def terminate():
@@ -389,7 +413,7 @@ def start_screen():
             elif on_start_btn:
                 start_btn.change_color(pygame.Color('white'))
                 if event.type == pygame.MOUSEBUTTONDOWN:
-                    clear_groups()
+                    clear()
                     restart()
                     return
             elif on_settings_btn:
@@ -421,8 +445,6 @@ def settings():
     minus_btn = TextObj("-", WIDTH // 2 - 100, 300, 120, pygame.Color('black'), True)
     plus_btn = TextObj("+", WIDTH // 2 + 100, 300, 120, pygame.Color('black'), True)
     back_btn = TextObj("BACK", WIDTH // 2, 420, 40, pygame.Color('black'), True)
-    #  leave_btn = TextObj("+", WIDTH // 2 + 100, 300, 120, pygame.Color('black'), True)
-    # status_volume = TextObj(str(SOUND_VOLUME * 100), WIDTH // 2, 330, 70, pygame.Color('black'), True)
     while True:
         for event in pygame.event.get():
             on_minus_btn = check_button_click(minus_btn.button_rect, pygame.mouse.get_pos())
@@ -466,7 +488,7 @@ def game_over():
                       HEIGHT // 2 - (back_ground_image.get_rect()[3] + 120) // 2))
     TextObj("ROGUELIKE", WIDTH // 2, 140, 70, pygame.Color('black'), True)
     TextObj(" GAME OVER", WIDTH // 2, 220, 60, pygame.Color('red'), True)
-    again_btn = TextObj("NEW GaME", WIDTH // 2, 300, 40, pygame.Color('black'), True)
+    again_btn = TextObj("NEW GAME", WIDTH // 2, 300, 40, pygame.Color('black'), True)
     settings_btn = TextObj("SETTINGS", WIDTH // 2, 360, 40, pygame.Color('black'), True)
     menu_btn = TextObj("MEIN MENU", WIDTH // 2, 420, 40, pygame.Color('black'), True)
 
@@ -512,17 +534,60 @@ def game_over():
         clock.tick(FPS)
 
 
+def win():
+    start_time = list(map(int, timer.start_time.split(':')))
+    passed_time = list(map(int, timer.time.split(':')))
+    time = f'{start_time[0] - passed_time[0] - 1}:{60 - passed_time[1]:02}'
+    back_ground_image = load_image('win2.jpg')
+
+    fon = pygame.transform.scale(back_ground_image,
+                                 (back_ground_image.get_rect()[2] + 120, back_ground_image.get_rect()[3] + 120))
+    screen.blit(fon, (WIDTH // 2 - (back_ground_image.get_rect()[2] + 120) // 2,
+                      HEIGHT // 2 - (back_ground_image.get_rect()[3] + 120) // 2))
+    TextObj("ROGUELIKE", WIDTH // 2, 140, 70, pygame.Color('black'), True)
+    TextObj("VICTORY", WIDTH // 2, 220, 60, pygame.Color('blue'), True)
+    TextObj(f"YOUR TIME: {time}", WIDTH // 2, 300, 40, pygame.Color('black'), True)
+    settings_btn = TextObj("SETTINGS", WIDTH // 2, 360, 40, pygame.Color('black'), True)
+    menu_btn = TextObj("MEIN MENU", WIDTH // 2, 420, 40, pygame.Color('black'), True)
+
+    while True:
+        for event in pygame.event.get():
+            on_settings_btn = check_button_click(settings_btn.button_rect, pygame.mouse.get_pos())
+            on_menu_btn = check_button_click(menu_btn.button_rect, pygame.mouse.get_pos())
+            if event.type == pygame.QUIT:
+                terminate()
+            elif on_settings_btn:
+                settings_btn.change_color(pygame.Color('white'))
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    settings()
+                    fon = pygame.transform.scale(back_ground_image,
+                                                 (back_ground_image.get_rect()[2] + 120,
+                                                  back_ground_image.get_rect()[3] + 120))
+                    screen.blit(fon, (WIDTH // 2 - (back_ground_image.get_rect()[2] + 120) // 2,
+                                      HEIGHT // 2 - (back_ground_image.get_rect()[3] + 120) // 2))
+                    TextObj("ROGUELIKE", WIDTH // 2, 140, 70, pygame.Color('black'), True)
+                    TextObj("VICTORY", WIDTH // 2, 220, 60, pygame.Color('blue'), True)
+                    TextObj(f"YOUT TIME: {time}", WIDTH // 2, 300, 40, pygame.Color('black'), True)
+                    settings_btn = TextObj("SETTINGS", WIDTH // 2, 360, 40, pygame.Color('black'), True)
+                    menu_btn = TextObj("MEIN MENU", WIDTH // 2, 420, 40, pygame.Color('black'), True)
+            elif on_menu_btn:
+                menu_btn.change_color(pygame.Color('white'))
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    return 2
+            if not on_menu_btn:
+                menu_btn.change_color(pygame.Color('black'))
+            if not on_settings_btn:
+                settings_btn.change_color(pygame.Color('black'))
+        pygame.display.flip()
+        clock.tick(FPS)
+
+
 def load_level(filename):
     filename = "data/" + filename
     with open(filename, 'r') as mapFile:
         level_map = [line.strip() for line in mapFile]
     max_width = max(map(len, level_map))
     return list(map(lambda x: list(x.ljust(max_width, '&')), level_map))
-
-
-MAGE_CAST_DIRECTIONS = ['down', 'down', 'down', 'down', 'right', 'right', 'up', 'down', 'up', 'up',
-                        'up', 'up', 'up', 'up', 'up', 'up']
-MAGE_CAST_DIRECTION_INDEX = 0
 
 
 def generate_level(level):
@@ -570,34 +635,46 @@ def generate_level(level):
     return new_player, x, y
 
 
+def check_chest(x, y):
+    global chest_opening_animation
+    for chest in ALL_CHESTS:
+        if x == chest.tile_pos[0] and y == chest.tile_pos[1] and not chest.opened:
+            chest.opened = True
+            chest_opening_animation = True
+            chest.opening_animation = True
+            chests_found.add_chest()
+            return
+
+
 def move(hero, movement):
     x, y = hero.tile_pos
     if movement == "up":
         if y > 0 and level_map[y - 1][x] == ".":
             hero.move(x, y - 1)
-        elif y > 0 and level_map[y - 1][x] == "c":
-            print(1)
+        else:
+            check_chest(x, y - 1)
     elif movement == "down":
         if y < max_y - 1 and level_map[y + 1][x] == ".":
             hero.move(x, y + 1)
-        elif y < max_y - 1 and level_map[y + 1][x] == "c":
-            print(2)
+        else:
+            check_chest(x, y + 1)
     elif movement == "left":
         if hero.direction == 'right':
             hero.direction = 'left'
             hero.image = pygame.transform.flip(hero.image, True, False)
         if x > 0 and level_map[y][x - 1] == ".":
             hero.move(x - 1, y)
-        elif x > 0 and level_map[y][x - 1] == "c":
-            print(3)
+        else:
+            check_chest(x - 1, y)
     elif movement == "right":
         if hero.direction == 'left':
             hero.direction = 'right'
             hero.image = pygame.transform.flip(hero.image, True, False)
         if x < max_x - 1 and level_map[y][x + 1] == ".":
             hero.move(x + 1, y)
-        elif x < max_x - 1 and level_map[y][x + 1] == "c":
-            print(4)
+        else:
+            check_chest(x + 1, y)
+
 
 
 VISIBLE_RADIUS = 3
@@ -651,6 +728,12 @@ def set_enemies_visible(hero):
                 if tile.is_visible:
                     ball.is_visible = True
                     ball.image = ball.true_image
+                    if ball.direction == 'left':
+                        ball.image = pygame.transform.flip(ball.true_image, True, False)
+                    elif ball.direction == 'up':
+                        ball.image = pygame.transform.rotate(ball.true_image, 90)
+                    elif ball.direction == 'down':
+                        ball.image = pygame.transform.rotate(ENEMY_IMAGES['mag_ball'][ball.iteration][0], -90)
                 else:
                     ball.is_visible = False
                     ball.image = TILE_IMAGES['void'][0]
@@ -659,13 +742,14 @@ def set_enemies_visible(hero):
 def restart():
     global level_map, hero, max_x, max_y, camera, iteration_time, iteration_time_enemy, iteration_time1, \
         iteration_time_f_trap, iteration_time_attack, iteration_time_idle, iteration_time_spike_trap, \
-        iteration_time_mag_ball, hearts
+        iteration_time_mag_ball, hearts, iteration_chest_opening
     screen.fill(pygame.Color("black"))
     level_map = load_level(MAP_FILE)
     hero, max_x, max_y = generate_level(level_map)
     camera = Camera(hero)
     iteration_time = iteration_time_enemy = iteration_time1 = iteration_time_f_trap = iteration_time_attack = \
-        iteration_time_idle = iteration_time_spike_trap = iteration_time_mag_ball = datetime.datetime.now()
+        iteration_time_idle = iteration_time_spike_trap = iteration_time_mag_ball = iteration_chest_opening \
+        = datetime.datetime.now()
     hearts = [HealthBar(2, 0), HealthBar(1.5, 0),
               HealthBar(1, 0), HealthBar(0.5, 0), HealthBar(0, 0)]
     set_tiles_visible(hero)
@@ -685,7 +769,7 @@ class Timer:
             tm_min, tm_sec = map(int, self.start_time.split(':'))
             res = game_over()
             if res == 1:
-                clear_groups()
+                clear()
                 restart()
             elif res == 2:
                 start_screen()
@@ -698,22 +782,39 @@ class Timer:
         self.timer.change_text(self.time)
 
 
+class ChestsFound:
+    def __init__(self, total):
+        self.total = total
+        self.found_num = 0
+        self.line = TextObj(f"Chests found: 0 / {self.total}", WIDTH // 2, 20, 25, pygame.Color('orange'), True)
+
+    def add_chest(self):
+        self.found_num += 1
+        self.line.change_text(f"Chests found: {self.found_num} / {self.total}")
+
+    def new_line(self):
+        self.line = TextObj(f"Chests found: 0 / {self.total}", WIDTH // 2, 20, 25, pygame.Color('orange'), True)
+
+
 SOUND_VOLUME = 0.05
 EFFECT_VOLUME = 1
 pygame.mixer.music.load('data/Sounds/soundtrack1.mp3')
 pygame.mixer.music.play(-1)
 pygame.mixer.music.set_volume(SOUND_VOLUME)
+chest_opening_animation = False
 level_map = load_level(MAP_FILE)
 hero, max_x, max_y = generate_level(level_map)
 camera = Camera(hero)
 iteration_time = iteration_time_enemy = iteration_time1 = iteration_time_attack = iteration_time_idle \
-    = iteration_time_f_trap = iteration_time_spike_trap = iteration_time_mag_ball = datetime.datetime.now()
+    = iteration_time_f_trap = iteration_time_spike_trap = iteration_time_mag_ball = iteration_chest_opening \
+    = datetime.datetime.now()
 hearts = [HealthBar(2, 0), HealthBar(1.5, 0),
           HealthBar(1, 0), HealthBar(0.5, 0), HealthBar(0, 0)]
 set_tiles_visible(hero)
 set_enemies_visible(hero)
-timer = Timer('10:00')  # time in str: _min:__sec
+timer = Timer('5:00')  # time in str: _min:__sec
 start_screen()
+chests_found = ChestsFound(6)
 while running:
     now = datetime.datetime.now()
     for event in pygame.event.get():
@@ -747,7 +848,7 @@ while running:
         #    else:
         #        pass
         # set_tiles_visible(hero)
-    if pygame.sprite.spritecollideany(hero, enemy_group):
+    if pygame.sprite.spritecollideany(hero, enemy_group) or pygame.sprite.spritecollideany(hero, mag_balls_group):
         for heart in hearts:
             if heart.isfull:
                 if (now - iteration_time1).total_seconds() >= 1:
@@ -756,6 +857,7 @@ while running:
                     heart.image = HEARTS_IMAGES[1]
                     hero.health -= 1
                     break
+
     collided_trap = pygame.sprite.spritecollideany(hero, trap_group)
     if collided_trap:
         if collided_trap.tile_type == 'fire':
@@ -821,10 +923,27 @@ while running:
         iteration_time_enemy = now
         for enemy in ALL_ENEMIES:
             enemy.move()
-    if (now - iteration_time_mag_ball).total_seconds() >= 1:
+    if (now - iteration_time_mag_ball).total_seconds() >= 0.5:
         iteration_time_mag_ball = now
         for ball in ALL_MAG_BALLS:
             ball.move()
+    if chest_opening_animation:
+        if (now - iteration_chest_opening).total_seconds() >= 1:
+            iteration_chest_opening = now
+            for chest in ALL_CHESTS:
+                if chest.opening_animation:
+                    chest.num_picture += 1
+                    chest.image = TREASURE_IMAGES[0][chest.num_picture][0]
+                    if chest.num_picture == 3:
+                        chest_opening_animation = False
+                        chest.opening_animation = False
+    if chests_found.found_num == chests_found.total and not chest_opening_animation:
+        chests_found.line.text_render()
+        res = win()
+        timer.time = timer.start_time
+        chests_found.found_num = 0
+        chests_found.new_line()
+        start_screen()
     if hero.health == 0:
         hearts[-1].isfull = False
         hearts[-1].image = HEARTS_IMAGES[1]
@@ -833,19 +952,21 @@ while running:
         res = game_over()
         timer.time = timer.start_time
         if res == 1:
-            clear_groups()
+            clear()
             restart()
         elif res == 2:
             start_screen()
     set_enemies_visible(hero)
     screen.fill(pygame.Color("black"))
     sprite_group.draw(screen)
-    hero_group.draw(screen)
-    enemy_group.draw(screen)
     trap_group.draw(screen)
     treasure_group.draw(screen)
+    enemy_group.draw(screen)
+    mag_balls_group.draw(screen)
+    hero_group.draw(screen)
     heart_group.draw(screen)
     timer.timer.text_render()
+    chests_found.line.text_render()
     clock.tick(FPS)
     pygame.display.flip()
 pygame.quit()
