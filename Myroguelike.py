@@ -95,7 +95,7 @@ ALL_ENEMIES = []
 ALL_TRAPS = []
 ALL_CHESTS = []
 ALL_MAG_BALLS = []
-print(ENEMY_IMAGES['mag_ball'][0][0])
+
 
 
 class SpriteGroup(pygame.sprite.Group):
@@ -263,8 +263,6 @@ class MagicBall(Sprite):
         if self.iteration == self.distance:
             self.iteration = 0
             self.abs_pos = self.start_pos[::]
-        if self.is_visible:
-            print(self.distance)
 
 
 MAGE_CAST_DIRECTIONS = [('down', 4), ('down', 4), ('down', 4), ('down', 6), ('right', 6), ('right', 6), ('up', 5),
@@ -812,7 +810,7 @@ hearts = [HealthBar(2, 0), HealthBar(1.5, 0),
           HealthBar(1, 0), HealthBar(0.5, 0), HealthBar(0, 0)]
 set_tiles_visible(hero)
 set_enemies_visible(hero)
-timer = Timer('5:00')  # time in str: _min:__sec
+timer = Timer('4:00')  # time in str: _min:__sec
 start_screen()
 chests_found = ChestsFound(6)
 while running:
